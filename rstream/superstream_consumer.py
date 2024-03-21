@@ -22,6 +22,7 @@ from .client import Addr, Client, ClientPool
 from .constants import (
     ConsumerOffsetSpecification,
     OffsetType,
+    SlasMechanism,
 )
 from .consumer import Consumer, EventContext, MessageContext
 from .superstream import DefaultSuperstreamMetadata
@@ -48,6 +49,7 @@ class SuperStreamConsumer:
         super_stream: str,
         connection_name: str = None,
         on_close_handler: Optional[CB[OnClosedErrorInfo]] = None,
+        sasl_configuration_mechanism: SlasMechanism,
     ):
         self._pool = ClientPool(
             host,
@@ -60,6 +62,7 @@ class SuperStreamConsumer:
             heartbeat=heartbeat,
             load_balancer_mode=load_balancer_mode,
             max_retries=max_retries,
+            sasl_configuration_mechanism=sasl_configuration_mechanism,
         )
         self._default_client: Optional[Client] = None
         self._clients: dict[str, Client] = {}
@@ -80,6 +83,7 @@ class SuperStreamConsumer:
         self._subscribers: dict[str, str] = defaultdict(str)
         self._on_close_handler = on_close_handler
         self._connection_name = connection_name
+        self._sasl_configuration_mechanism = sasl_configuration_mechanism
         if self._connection_name is None:
             self._connection_name = "rstream-consumer"
 
@@ -124,6 +128,7 @@ class SuperStreamConsumer:
                 connection_closed_handler=self._on_close_handler,
                 connection_name=self._connection_name,
                 stream=stream,
+                sasl_configuration_mechanism=self._sasl_configuration_mechanism,
             )
 
         return self._clients[stream]
@@ -150,7 +155,7 @@ class SuperStreamConsumer:
 
         if self._default_client is None or self._default_client.is_connection_alive() is False:
             self._default_client = await self._pool.get(
-                connection_closed_handler=self._on_close_handler, connection_name="rstream-locator"
+                connection_closed_handler=self._on_close_handler, connection_name="rstream-locator", sasl_configuration_mechanism=self._sasl_configuration_mechanism,
             )
 
         self._super_stream_metadata = DefaultSuperstreamMetadata(self.super_stream, self.default_client)
@@ -192,6 +197,7 @@ class SuperStreamConsumer:
             max_retries=self.max_retries,
             on_close_handler=self._on_close_handler,
             connection_name=self._connection_name,
+            sasl_configuration_mechanism=self._sasl_configuration_mechanism,
         )
 
         await consumer.start()

@@ -668,7 +668,7 @@ class ClientPool:
         heartbeat: int,
         load_balancer_mode: bool,
         max_retries: int,
-        sasl_configuration_mechanism: SlasMechanism = SlasMechanism.MechanismPlain,
+        sasl_configuration_mechanism: SlasMechanism,
     ):
         self.addr = Addr(host=host, port=port)
         self.ssl_context = ssl_context
@@ -681,6 +681,7 @@ class ClientPool:
         self._frame_max = frame_max
         self._heartbeat = heartbeat
         self._clients: dict[Addr, Client] = {}
+        self._sasl_configuration_mechanism = sasl_configuration_mechanism
 
     async def get(
         self,
@@ -688,7 +689,7 @@ class ClientPool:
         addr: Optional[Addr] = None,
         connection_closed_handler: Optional[CB[OnClosedErrorInfo]] = None,
         stream: Optional[str] = None,
-        sasl_configuration_mechanism: SlasMechanism = SlasMechanism.MechanismPlain,
+        sasl_configuration_mechanism: SlasMechanism = SlasMechanism.MechanismPlain
     ) -> Client:
         """Get a client according to `addr` parameter
 
@@ -699,7 +700,7 @@ class ClientPool:
         and `load_balancer_mode` is ignored.
         """
         desired_addr = addr or self.addr
-
+        sasl_configuration_mechanism=self._sasl_configuration_mechanism
         if desired_addr not in self._clients or self._clients[desired_addr].is_connection_alive() is False:
             if addr and self.load_balancer_mode:
                 self._clients[desired_addr] = await self._resolve_broker(
